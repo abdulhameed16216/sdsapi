@@ -25,6 +25,7 @@ return [
         'http://localhost:3001',
         'http://127.0.0.1:3001',
         'https://sds.veeyaainnovatives.com',
+        'https://sathishdesigners.com',
         env('FRONTEND_URL'),
     ]),
 
