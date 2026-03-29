@@ -1,0 +1,82 @@
+UNUSED COMPONENTS LIST - SAFE TO DELETE
+========================================
+
+Based on routing analysis, these components/modules are NOT accessible in your application:
+
+1. ENTIRE UI-ELEMENTS MODULE (NOT ROUTED):
+   ----------------------------------------
+   Location: ebms/src/app/demo/ui-elements/
+   
+   All components in ui-elements/ui-basic/ are UNUSED:
+   - basic-alert
+   - basic-badge
+   - basic-button
+   - basic-cards
+   - basic-carousel
+   - basic-collapse
+   - basic-grid
+   - basic-modal
+   - basic-other
+   - basic-progress-bar
+   - basic-spinner
+   - basic-tabs-pills
+   - basic-tooltip-popovers
+   - basic-typography
+   - breadcrumb-paging
+   - ui-basic.module.ts
+   - ui-basic-routing.module.ts
+
+2. CORE-CHART MODULE (NOT ROUTED):
+   --------------------------------
+   Location: ebms/src/app/demo/pages/core-chart/
+   - crt-apex component
+   - core-chart-routing.module.ts
+   - core-chart.module.ts
+
+3. FORM-ELEMENTS MODULE (NOT ROUTED):
+   -----------------------------------
+   Location: ebms/src/app/demo/pages/form-elements/
+   - basic-elements component
+   - form-elements-routing.module.ts
+   - form-elements.module.ts
+
+4. LAYOUT MODULE (NOT ROUTED):
+   ---------------------------
+   Location: ebms/src/app/demo/pages/layout/
+   - common-content component
+   - theme-horizontal component
+   - layout-routing.module.ts
+   - layout.module.ts
+
+5. SAMPLE-PAGE MODULE (NOT ROUTED):
+   ---------------------------------
+   Location: ebms/src/app/demo/pages/sample-page/
+   - sample-page component
+   - sample-page-routing.module.ts
+   - sample-page.module.ts
+
+6. TABLES MODULE (NOT ROUTED):
+   ---------------------------
+   Location: ebms/src/app/demo/pages/tables/
+   - tbl-bootstrap component
+   - All related files
+
+========================================
+SUMMARY:
+========================================
+
+DELETED FOLDERS (✓):
+1. ✓ ebms/src/app/demo/ui-elements/ (DELETED - 107 files)
+2. ✓ ebms/src/app/demo/pages/core-chart/ (DELETED)
+3. ✓ ebms/src/app/demo/pages/form-elements/ (DELETED)
+4. ✓ ebms/src/app/demo/pages/layout/ (DELETED)
+5. ✓ ebms/src/app/demo/pages/sample-page/ (DELETED)
+6. ✓ ebms/src/app/demo/pages/tables/ (DELETED)
+
+TOTAL DELETED: ~200+ unused component files
+
+STATUS: All unused components have been successfully deleted!
+
+NOTE: These were all demo/example components from the template that were not 
+integrated into your actual application routing.
+

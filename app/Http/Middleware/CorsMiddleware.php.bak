@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class CorsMiddleware
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        $allowedOrigins = explode(',', env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:8080,http://localhost:4200'));
+        $origin = $request->headers->get('Origin');
+
+        // Set CORS headers for allowed origins or all origins in development
+        // In local/development environment, allow all origins for easier development
+        $isDevelopment = in_array(env('APP_ENV'), ['local', 'development', 'dev']);
+        $isAllowedOrigin = $origin && in_array($origin, $allowedOrigins);
+        
+        // Check if origin is localhost (any port)
+        $isLocalhost = $origin && (
+            str_starts_with($origin, 'http://localhost') || 
+            str_starts_with($origin, 'https://localhost') ||
+            str_starts_with($origin, 'http://127.0.0.1') ||
+            str_starts_with($origin, 'https://127.0.0.1')
+        );
+        
+        // Check if origin is from veeyaainnovatives.com domain (any subdomain)
+        $isVeeyaaDomain = $origin && str_contains($origin, 'veeyaainnovatives.com');
+        
+        // Determine if we should allow this origin
+        // Allow if: development environment, localhost (any port), veeyaainnovatives.com domain, or explicitly in allowed list
+        $shouldAllow = $isDevelopment || $isLocalhost || $isVeeyaaDomain || $isAllowedOrigin;
+        
+        // Get CORS configuration from env with defaults
+        $allowedMethods = env('CORS_ALLOWED_METHODS', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+        $allowedHeaders = env('CORS_ALLOWED_HEADERS', 'Content-Type,Authorization,X-Requested-With,Accept,Origin,X-CSRF-TOKEN');
+        
+        // Handle preflight OPTIONS request
+        if ($request->getMethod() === 'OPTIONS') {
+            $response = response('', 200);
+            
+            // Set CORS headers for preflight if origin exists and should be allowed
+            if ($shouldAllow && $origin) {
+                $response->headers->set('Access-Control-Allow-Origin', $origin);
+                $response->headers->set('Access-Control-Allow-Methods', $allowedMethods);
+                $response->headers->set('Access-Control-Allow-Headers', $allowedHeaders);
+                $response->headers->set('Access-Control-Allow-Credentials', 'true');
+                $response->headers->set('Access-Control-Max-Age', '86400');
+            } elseif ($origin) {
+                // Even if not allowed, respond to preflight (but without CORS headers)
+                // This helps with debugging
+            }
+            
+            return $response;
+        }
+        
+        // Handle actual request
+        $response = $next($request);
+        
+        // Set CORS headers for actual response if origin exists and should be allowed
+        if ($shouldAllow && $origin) {
+            $response->headers->set('Access-Control-Allow-Origin', $origin);
+            $response->headers->set('Access-Control-Allow-Methods', $allowedMethods);
+            $response->headers->set('Access-Control-Allow-Headers', $allowedHeaders);
+            $response->headers->set('Access-Control-Allow-Credentials', 'true');
+            $response->headers->set('Access-Control-Max-Age', '86400');
+            $response->headers->set('Access-Control-Expose-Headers', 'Authorization');
+        }
+
+        return $response;
+    }
+}

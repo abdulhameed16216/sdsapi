@@ -5,30 +5,46 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of users
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $perPage = $request->get('per_page', 15);
-        $search = $request->get('search');
+        $query = User::with('employee.role');
 
-        $query = User::query();
-
-        if ($search) {
+        // Search functionality
+        if ($request->has('search')) {
+            $search = $request->get('search');
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                $q->where('username', 'like', "%{$search}%")
+                  ->orWhereHas('employee', function ($empQuery) use ($search) {
+                      $empQuery->where('name', 'like', "%{$search}%")
+                               ->orWhere('email', 'like', "%{$search}%")
+                               ->orWhere('mobile_number', 'like', "%{$search}%");
+                  });
             });
         }
 
+        // Filter by role (through employee relationship)
+        if ($request->has('role_id')) {
+            $query->whereHas('employee', function ($empQuery) use ($request) {
+                $empQuery->where('role_id', $request->get('role_id'));
+            });
+        }
+
+        // Filter by status
+        if ($request->has('status')) {
+            $query->where('status', $request->get('status'));
+        }
+
+        // Pagination
+        $perPage = $request->get('per_page', 15);
         $users = $query->paginate($perPage);
 
         return response()->json([
@@ -38,148 +54,110 @@ class UserController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created user
+     * Note: Users are typically created through employee creation, but this method is kept for API consistency
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'firstName' => 'required|string|max:255',
-            'lastName' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username',
-            'email' => 'required|string|email|max:255|unique:users',
-            'phone' => 'nullable|string|max:20',
-            'role' => 'nullable|string|max:255',
-            'password' => 'required|string|min:6|confirmed',
+            'username' => 'required|string|max:255|unique:users',
+            'password' => 'required|string|min:8',
+            'employee_id' => 'required|exists:employees,id',
+            'status' => 'required|in:active,inactive',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation error',
+                'message' => 'Validation errors',
                 'errors' => $validator->errors()
             ], 422);
         }
 
-        // Combine first name and last name
-        $fullName = trim($request->firstName . ' ' . $request->lastName);
-
         $user = User::create([
-            'name' => $fullName,
             'username' => $request->username,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'role' => $request->role,
             'password' => Hash::make($request->password),
+            'employee_id' => $request->employee_id,
+            'status' => $request->status,
         ]);
+
+        // Load relationships for response
+        $user->load('employee.role');
 
         return response()->json([
             'success' => true,
             'message' => 'User created successfully',
-            'data' => $user
+            'data' => [
+                'user' => $user
+            ]
         ], 201);
     }
 
     /**
-     * Display the specified resource.
+     * Display the specified user
      */
-    public function show($id)
+    public function show(User $user): JsonResponse
     {
-        $user = User::find($id);
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-
+        $user->load('employee.role');
+        
         return response()->json([
             'success' => true,
-            'data' => $user
+            'data' => [
+                'user' => $user
+            ]
         ]);
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified user
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, User $user): JsonResponse
     {
-        $user = User::find($id);
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-
         $validator = Validator::make($request->all(), [
-            'firstName' => 'required|string|max:255',
-            'lastName' => 'nullable|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username,' . $id,
-            'email' => 'required|string|email|max:255|unique:users,email,' . $id,
-            'phone' => 'nullable|string|max:20',
-            'role' => 'nullable|string|max:255',
-            'password' => 'nullable|string|min:6|confirmed',
+            'username' => 'sometimes|required|string|max:255|unique:users,username,' . $user->id,
+            'password' => 'sometimes|required|string|min:8',
+            'status' => 'sometimes|required|in:active,inactive',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation error',
+                'message' => 'Validation errors',
                 'errors' => $validator->errors()
             ], 422);
         }
 
-        // Combine first name and last name
-        $fullName = trim($request->firstName . ' ' . $request->lastName);
+        $updateData = $request->only(['username', 'status']);
         
-        $data = [
-            'name' => $fullName,
-            'username' => $request->username,
-            'email' => $request->email,
-            'phone' => $request->phone,
-        ];
-
-        // Only update role if it's provided and not empty, and user is not updating themselves
-        // (Users cannot change their own role)
-        if ($request->filled('role') && $request->role !== '' && $user->id !== auth('api')->id()) {
-            $data['role'] = $request->role;
+        if ($request->has('password')) {
+            $updateData['password'] = Hash::make($request->password);
         }
 
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
-        }
-
-        $user->update($data);
+        $user->update($updateData);
+        
+        // Load relationships for response
+        $user->load('employee.role');
 
         return response()->json([
             'success' => true,
             'message' => 'User updated successfully',
-            'data' => $user->fresh()
+            'data' => [
+                'user' => $user
+            ]
         ]);
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove the specified user
      */
-    public function destroy($id)
+    public function destroy(User $user): JsonResponse
     {
-        $user = User::find($id);
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-
-        // Prevent deleting yourself
-        if ($user->id === auth('api')->id()) {
+        // Prevent deleting the current user
+        if ($user->id === auth()->id()) {
             return response()->json([
                 'success' => false,
                 'message' => 'You cannot delete your own account'
-            ], 403);
+            ], 400);
         }
 
         $user->delete();
@@ -191,34 +169,20 @@ class UserController extends Controller
     }
 
     /**
-     * Toggle user status (active/inactive)
+     * Get user statistics
      */
-    public function toggleStatus($id)
+    public function stats(): JsonResponse
     {
-        $user = User::find($id);
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-
-        // Prevent toggling your own status
-        if ($user->id === auth('api')->id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You cannot change your own status'
-            ], 403);
-        }
-
-        $user->status = !$user->status;
-        $user->save();
+        $stats = [
+            'total_users' => User::count(),
+            'active_users' => User::active()->count(),
+            'recent_registrations' => User::where('created_at', '>=', now()->subDays(30))->count(),
+            'users_by_role' => User::with('employee.role')->get()->groupBy('employee.role.name')->map->count(),
+        ];
 
         return response()->json([
             'success' => true,
-            'message' => 'User status updated successfully',
-            'data' => $user->fresh()
+            'data' => $stats
         ]);
     }
 }
