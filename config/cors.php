@@ -19,17 +19,15 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
+    'allowed_origins' => array_filter([
         'http://localhost:3000',
-        'http://localhost:4200',
-        'http://localhost:8080',
-        'http://localhost:8100',
-        'http://127.0.0.1:8100',
-        'http://localhost:50324',
-        'https://eb-develop.veeyaainnovatives.com',
-        'https://eb-develop-api.veeyaainnovatives.com',
-        'https://eb-mobile.veeyaainnovatives.com'
-    ],
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+        'https://sds.veeyaainnovatives.com',
+        'https://sathishdesigners.com',
+        env('FRONTEND_URL'),
+    ]),
 
     'allowed_origins_patterns' => [],
 
@@ -42,3 +40,4 @@ return [
     'supports_credentials' => true,
 
 ];
+
