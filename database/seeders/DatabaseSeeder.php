@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(ProjectStepMasterSeeder::class);
+
         // Create or update default admin user
         User::updateOrCreate(
             ['email' => 'abdul@example.com'],

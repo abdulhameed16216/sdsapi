@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\ProjectStep;
 use App\Models\ProjectStepDocument;
+use App\Models\ProjectStepMaster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -204,8 +205,7 @@ class AssignProjectController extends Controller
             }
             
             $stepId = $stepData['step_id'];
-            // Validate step_id is between 2 and 5
-            if ($stepId < 2 || $stepId > 5) {
+            if ($stepId < 2 || $stepId > ProjectStepMaster::maxWorkStepId()) {
                 continue;
             }
 

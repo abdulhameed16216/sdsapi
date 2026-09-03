@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\AssignProjectController;
+use App\Http\Controllers\Api\ProjectStepMasterController;
 use App\Http\Controllers\Api\PdfDownloadController;
 use App\Http\Controllers\Api\FaqController;
 use App\Http\Controllers\Api\PartnerProgramController;
@@ -143,6 +144,9 @@ Route::middleware('auth:api')->group(function () {
     // Customer CRUD (admin only - uses api guard)
     Route::apiResource('customers', CustomerController::class);
     
+    // Shared project step titles (single source of truth)
+    Route::get('/project-step-masters', [ProjectStepMasterController::class, 'index']);
+
     // Project CRUD
     Route::apiResource('projects', ProjectController::class);
     Route::post('/projects/{id}/steps', [ProjectController::class, 'addStep']);
@@ -166,6 +170,8 @@ Route::middleware('auth:customer-api')->group(function () {
     Route::post('/customer/logout', [CustomerAuthController::class, 'logout']);
     Route::post('/customer/change-password', [CustomerAuthController::class, 'changePassword']);
     
+    Route::get('/customer/project-step-masters', [ProjectStepMasterController::class, 'index']);
+
     // Customer projects (assigned projects)
     Route::get('/customer/projects', [ProjectController::class, 'customerProjects']);
     Route::get('/customer/projects/{id}', [ProjectController::class, 'customerProjectShow']);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\ProjectStep;
 use App\Models\ProjectStepDocument;
+use App\Models\ProjectStepMaster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -133,7 +134,7 @@ class ProjectController extends Controller
             'end_date' => 'required|date|after:start_date',
             'description' => 'nullable|string',
             'steps' => 'nullable|array',
-            'steps.*.step_id' => 'nullable|integer|min:2|max:5',
+            'steps.*.step_id' => 'nullable|integer|min:2|max:' . ProjectStepMaster::maxWorkStepId(),
             'steps.*.description' => 'nullable|string',
             'steps.*.status' => 'nullable|string|in:pending,in_progress,completed',
             'steps.*.completion_date' => 'nullable|date',
@@ -389,7 +390,7 @@ class ProjectController extends Controller
             'end_date' => 'required|date|after:start_date',
             'description' => 'nullable|string',
             'steps' => 'nullable|array',
-            'steps.*.step_id' => 'nullable|integer|min:2|max:5',
+            'steps.*.step_id' => 'nullable|integer|min:2|max:' . ProjectStepMaster::maxWorkStepId(),
             'steps.*.description' => 'nullable|string',
             'steps.*.status' => 'nullable|string|in:pending,in_progress,completed',
             'steps.*.completion_date' => 'nullable|date',
@@ -605,9 +606,8 @@ class ProjectController extends Controller
             }
             
             $stepId = $stepData['step_id'];
-            // Validate step_id is between 2 and 5
-            if ($stepId < 2 || $stepId > 5) {
-                continue; // Skip invalid step_id
+            if ($stepId < 2 || $stepId > ProjectStepMaster::maxWorkStepId()) {
+                continue;
             }
 
             $stepId = $stepData['step_id'];
@@ -978,7 +978,7 @@ class ProjectController extends Controller
 
         // Custom validation for documents - can be files or array
         $validator = Validator::make($request->all(), [
-            'step_id' => 'required|integer|min:2|max:5',
+            'step_id' => 'required|integer|min:2|max:' . ProjectStepMaster::maxWorkStepId(),
             'description' => 'nullable|string',
             'status' => 'nullable|string|in:pending,in_progress,completed',
             'completion_date' => 'nullable|date',
@@ -1091,7 +1091,7 @@ class ProjectController extends Controller
 
         // Custom validation for documents - can be files or array
         $validator = Validator::make($request->all(), [
-            'step_id' => 'nullable|integer|min:2|max:5',
+            'step_id' => 'nullable|integer|min:2|max:' . ProjectStepMaster::maxWorkStepId(),
             'description' => 'nullable|string',
             'status' => 'nullable|string|in:pending,in_progress,completed',
             'completion_date' => 'nullable|date',
@@ -1393,9 +1393,16 @@ class ProjectController extends Controller
 
         $projects = $query->orderBy('created_at', 'desc')->get();
 
+        $data = $projects->map(function ($project) {
+            $projectData = $project->toArray();
+            $projectData['steps'] = ProjectStep::fullList($project->steps, $project->id);
+
+            return $projectData;
+        });
+
         return response()->json([
             'success' => true,
-            'data' => $projects
+            'data' => $data
         ]);
     }
 
@@ -1443,30 +1450,12 @@ class ProjectController extends Controller
         // The relationship name is 'stepDocuments' but Laravel might serialize it as 'step_documents'
         // We'll ensure both are available for frontend compatibility
         $projectData = $project->toArray();
-        
-        // Transform steps to ensure stepDocuments are included
-        if (isset($projectData['steps'])) {
-            foreach ($projectData['steps'] as &$step) {
-                // Ensure step_documents is present (for API compatibility)
-                if (isset($step['step_documents'])) {
-                    $step['stepDocuments'] = $step['step_documents'];
-                } elseif (isset($step['stepDocuments'])) {
-                    $step['step_documents'] = $step['stepDocuments'];
-                }
-            }
-            unset($step); // Break reference
-        }
+        $projectData['steps'] = ProjectStep::fullList($project->steps, $project->id);
 
-        // Calculate project progress
-        // Total steps = 5 (Step 1: Project Information + Steps 2-5: Project Steps)
-        $totalSteps = 5;
-        $completedSteps = 1; // Step 1 is always considered completed if project exists
-        
-        // Count completed steps from project_steps (steps 2-5)
-        if ($project->steps && $project->steps->count() > 0) {
-            $completedProjectSteps = $project->steps->where('status', 'completed')->count();
-            $completedSteps += $completedProjectSteps;
-        }
+        $totalSteps = count(ProjectStep::names());
+        $completedSteps = collect($projectData['steps'])
+            ->where('status', 'completed')
+            ->count();
         
         $progress = round(($completedSteps / $totalSteps) * 100);
         
