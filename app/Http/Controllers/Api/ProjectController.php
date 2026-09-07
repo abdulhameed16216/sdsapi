@@ -1395,7 +1395,10 @@ class ProjectController extends Controller
 
         $data = $projects->map(function ($project) {
             $projectData = $project->toArray();
-            $projectData['steps'] = ProjectStep::fullList($project->steps, $project->id);
+            $projectData['steps'] = array_values(array_filter(
+                ProjectStep::fullList($project->steps, $project->id),
+                fn ($step) => (int) ($step['step_id'] ?? 0) > 1
+            ));
 
             return $projectData;
         });
@@ -1450,10 +1453,13 @@ class ProjectController extends Controller
         // The relationship name is 'stepDocuments' but Laravel might serialize it as 'step_documents'
         // We'll ensure both are available for frontend compatibility
         $projectData = $project->toArray();
-        $projectData['steps'] = ProjectStep::fullList($project->steps, $project->id);
+        $projectData['steps'] = array_values(array_filter(
+            ProjectStep::fullList($project->steps, $project->id),
+            fn ($step) => (int) ($step['step_id'] ?? 0) > 1
+        ));
 
         $totalSteps = count(ProjectStep::names());
-        $completedSteps = collect($projectData['steps'])
+        $completedSteps = 1 + collect($projectData['steps'])
             ->where('status', 'completed')
             ->count();
         

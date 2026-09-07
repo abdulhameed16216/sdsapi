@@ -44,9 +44,16 @@ class ProjectStep extends Model
         return self::names()[(int) $stepId] ?? null;
     }
 
+    public static function infoStepId(): ?int
+    {
+        $firstId = array_key_first(self::names());
+
+        return $firstId !== null ? (int) $firstId : null;
+    }
+
     /**
-     * Return all configured steps with titles from project_step_masters.
-     * Existing DB steps are merged in; missing ones are placeholders.
+     * Return work steps with titles from project_step_masters.
+     * Step 1 (project information) is excluded — it lives on the project record.
      */
     public static function fullList($existingSteps = [], $projectId = null): array
     {
@@ -58,6 +65,12 @@ class ProjectStep extends Model
 
         $steps = [];
         foreach (self::names() as $stepId => $name) {
+            $stepId = (int) $stepId;
+            // Step 1 is project information (name, dates, description) — never return it in steps
+            if ($stepId <= 1) {
+                continue;
+            }
+
             $step = $existing->get($stepId);
 
             if ($step) {
@@ -84,7 +97,7 @@ class ProjectStep extends Model
                 'step_name' => $name,
                 'title' => $name,
                 'description' => null,
-                'status' => $stepId === 1 ? 'completed' : 'pending',
+                'status' => 'pending',
                 'completion_date' => null,
                 'documents' => [],
                 'step_documents' => [],
